@@ -30,7 +30,7 @@ app.get('/discord', async function (req, res) {
                 {
                     type: 3,
                     name: "prompt",
-                    value: `AJ is smart --v 5`
+                    value: `AJ is smart --no ${uniqueId} --v 5`
                 }
             ],
             // application_command: {
@@ -67,28 +67,14 @@ app.get('/discord', async function (req, res) {
         "Content-Type": "application/json"
     };
 
-    var clientServerOptions = {
-        uri: postUrl,
-        body: postPayload,
-        method: 'POST',
-        headers: postHeaders
-    }
-
     var options = {
         method: 'POST',
         headers: postHeaders
     }
 
-    const reqes = http.request(postUrl, options, res => 
-        {
-            console.log(res)
-        }
-    )
-
-    // await request(clientServerOptions, (error, response) => {
-    //     console.error(error)
-    //     console.log(response)
-    // })
+    const reqes = http.request(postUrl, options, res => {
+        console.log(res.statusCode)
+    })
 
     reqes.on('error', (e) => {
         console.error(`problem with request: ${e.message}`);
@@ -98,11 +84,57 @@ app.get('/discord', async function (req, res) {
         .stringify(postPayload));
     reqes.end();
 
-    res.send('Hello World')
+    res.send(`Hello World: ${uniqueId}`)
+})
+
+app.get('/discord/:id', async function (req, res) {
+    const id = req.params.id
+
+    const headers = {
+        "Authorization": process.env.AUTHORIZATION_ID,
+        "Content-Type": "application/json"
+    };
+
+    const channelUrl = `https://discord.com/api/v9/channels/${process.env.CHANNEL_ID}/messages?limit=50`;
+
+    var options = {
+        method: 'GET',
+        headers: headers
+    }
+
+    const result = new Promise(function (resolve, reject) {
+        const reqes = new http.request(channelUrl, options, (res) => {
+            let data = []
+            console.log('Status Code:', res.statusCode);
+
+            res.on('data', (chunk) => {
+                data.push(chunk)
+            })
+
+            res.on('close', () => {
+                var result = JSON.parse(Buffer.concat(data).toString());
+                var matchingMessage = result.filter(message => message.content.includes(`--no ${id}`))
+
+                if (!matchingMessage.length || matchingMessage.length > 1) {
+                    // imageObject = null
+                    resolve(null)
+                }
+                else {
+                    // imageObject = JSON.parse(JSON.stringify(matchingMessage))
+                    resolve(matchingMessage)
+                }
+            })
+        })
+
+        reqes.on('error', (err) => console.log(err))
+        reqes.end()
+    })
+
+    var message = await result
+    res.send(JSON.stringify(message))
 })
 
 var server = app.listen(8081, function () {
-
     var host = server.address().address
     var port = server.address().port
 
