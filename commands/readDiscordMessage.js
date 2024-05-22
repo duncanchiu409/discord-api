@@ -18,7 +18,7 @@ const findFromPrompt = (prompt) => {
 }
 
 const findFromMessageId = (messageId) => {
-    return (message) => message.content.includes(messageId) && !message.content.includes('Image') && !message.content.includes('Variations')
+    return (message) => message.id == messageId
 }
 
 const findUpcaleFromPrompt = (prompt, button) => {
@@ -29,13 +29,17 @@ const findUpcaleFromMessageId = (messageID, button) => {
     return (message) => message.content.includes(messageID) && message.content.includes(`Image #${button[1]}`)
 }
 
+const findVariationFromPrompt = (prompt) => {
+    return (message) => message.content.includes('ariations') && message.content.includes(prompt)
+}
+
 const readDiscordMessage = function(filterFunction){
     const headers = {
         "Authorization": process.env.AUTHORIZATION_ID,
         "Content-Type": "application/json"
     };
 
-    const channelUrl = `https://discord.com/api/v9/channels/${process.env.CHANNEL_ID}/messages?limit=20`;
+    const channelUrl = `https://discord.com/api/v9/channels/${process.env.CHANNEL_ID}/messages?limit=15`;
 
     var options = {
         method: 'GET',
@@ -78,5 +82,6 @@ module.exports = {
     findUpcaleFromPrompt,
     findAnything,
     findSeed,
+    findVariationFromPrompt,
     readDiscordMessage,
 }

@@ -8,7 +8,7 @@ var app = express();
 require('dotenv').config()
 
 const { createPrompt } = require('./commands/createPrompt')
-const { findFromPrompt, findFromMessageId, readDiscordMessage, findUpcaleFromPrompt, findAnything, findSeed } = require('./commands/readDiscordMessage');
+const { findFromPrompt, findFromMessageId, readDiscordMessage, findUpcaleFromPrompt, findAnything, findSeed, findVariationFromPrompt } = require('./commands/readDiscordMessage');
 const { createDataURI } = require('./commands/createDataURI');
 const { operateDiscordMessage } = require('./commands/operateDiscordMessage');
 const { reactEnvelope } = require('./commands/operateDiscordReaction')
@@ -23,11 +23,17 @@ function sleep(ms) {
     });
 }
 
-function grabSeedFromContent(content){
+function grabSeedFromContent(content) {
     const arr = content.split('\n')
     const seed = arr[2].split(' ')
 
     return seed[1]
+}
+
+function grabKeyFromContent(content){
+    const arr = content.split('--')
+    const key = arr[0]
+    return key
 }
 
 /**
@@ -91,7 +97,7 @@ function grabSeedFromContent(content){
 app.post('/imagine', async function (req, res) {
     const uniqueId = uuidv4()
     try {
-        if(!req.body.msg){
+        if (!req.body.msg) {
             res.status(400).json({
                 success: false,
                 messageId: null,
@@ -101,13 +107,23 @@ app.post('/imagine', async function (req, res) {
         const msg = req.body.msg
 
         await createPrompt(msg, uniqueId)
-        await sleep(5000)
-        const filterFunction = findFromMessageId(uniqueId)
-        const matchingMessage = await readDiscordMessage(filterFunction)
+        await sleep(3000)
+
+        var matchingMessage;
+        while (true) {
+            const filterFunction = findFromPrompt(uniqueId)
+            var matchingMessage = await readDiscordMessage(filterFunction)
+            if(!matchingMessage[0].content.includes('Waiting to start') && !matchingMessage[0].content.includes('%')){
+                break
+            }
+            else{
+                await sleep(3000)
+            }
+        }
 
         res.json({
             success: true,
-            messageId: uniqueId,
+            messageId: matchingMessage[0].id,
             createdAt: matchingMessage[0].timestamp
         })
     }
@@ -186,7 +202,7 @@ app.post('/imagine', async function (req, res) {
 app.post('/button', async function (req, res) {
     const validButtons = ['U1', 'U2', 'U3', 'U4', 'refresh', 'V1', 'V2', 'V3', 'V4']
 
-    if(!req.body.buttonMessageId){
+    if (!req.body.buttonMessageId) {
         res.status(400).json({
             success: false,
             messageId: null,
@@ -194,7 +210,7 @@ app.post('/button', async function (req, res) {
         })
     }
 
-    if(!validButtons.includes(req.body.button)){
+    if (!validButtons.includes(req.body.button)) {
         res.status(400).json({
             success: false,
             messageId: null,
@@ -208,7 +224,9 @@ app.post('/button', async function (req, res) {
     try {
         var filterFunction = findFromMessageId(buttonMessageId)
         var matchingMessage = await readDiscordMessage(filterFunction)
+        
         var messageID = matchingMessage[0].id
+        var prompt = grabKeyFromContent(matchingMessage[0].content)
 
         var customID;
         if (button.includes('U')) {
@@ -222,23 +240,40 @@ app.post('/button', async function (req, res) {
         }
 
         await operateDiscordMessage(messageID, customID)
-        await sleep(5000)
+        await sleep(3000)
 
         if (button.includes('U')) {
-            filterFunction = findUpcaleFromPrompt(buttonMessageId, button)
+            filterFunction = findUpcaleFromPrompt(prompt, button)
+            await readDiscordMessage(filterFunction)
         }
         else if (button.includes('V')) {
-            customID = matchingMessage[0].components[1].components.filter(component => component.label == button)[0].custom_id
+            filterFunction = findVariationFromPrompt(prompt)
+            while (true) {
+                var matchingMessage = await readDiscordMessage(filterFunction)
+                if(!matchingMessage[0].content.includes('Waiting to start') && !matchingMessage[0].content.includes('%')){
+                    break
+                }
+                else{
+                    await sleep(3000)
+                }
+            }
         }
         else {
-            customID = matchingMessage[0].components[0].components[4].custom_id
+            filterFunction = findFromPrompt(prompt)
+            while (true) {
+                var matchingMessage = await readDiscordMessage(filterFunction)
+                if(!matchingMessage[0].content.includes('Waiting to start') && !matchingMessage[0].content.includes('%')){
+                    break
+                }
+                else{
+                    await sleep(3000)
+                }
+            }
         }
-
-        matchingMessage = await readDiscordMessage(filterFunction)
 
         res.json({
             success: true,
-            messageID: buttonMessageId,
+            messageID: matchingMessage[0].id,
             createdAt: matchingMessage[0].timestamp
         })
     }
@@ -275,7 +310,7 @@ app.post('/status/:id', function (req, res) {
 */
 
 app.post('/slash-commands', function (req, res) {
-    if(!req.body.cmd){
+    if (!req.body.cmd) {
         res.status(400).json({
             success: false,
             messageId: null,
@@ -285,12 +320,12 @@ app.post('/slash-commands', function (req, res) {
 
     const cmd = req.body.cmd
 
-    try{
+    try {
         res.json({
             cmd: cmd
         })
     }
-    catch(err){
+    catch (err) {
         console.error(err)
         res.status(400).json({
             success: false,
@@ -339,16 +374,16 @@ app.post('/slash-commands', function (req, res) {
  *                   example: null
 */
 
-app.get('/seed/:id', async function(req, res){
-    if(!req.params.id){
+app.get('/seed/:id', async function (req, res) {
+    if (!req.params.id) {
         res.status(400).json({
             seed: null
         })
     }
 
-    const id = req.params.id 
+    const id = req.params.id
 
-    try{
+    try {
         await reactEnvelope(id)
         await sleep(5000)
         const filterFunction = findSeed()
@@ -359,7 +394,7 @@ app.get('/seed/:id', async function(req, res){
             seed: result
         })
     }
-    catch(err){
+    catch (err) {
         console.error(err)
         res.status(400).json({
             seed: null
@@ -367,7 +402,7 @@ app.get('/seed/:id', async function(req, res){
     }
 })
 
-app.post('/anything', async function (req, res){
+app.post('/anything', async function (req, res) {
     const id = req.body.id
 
     const filterFunction = findAnything()
