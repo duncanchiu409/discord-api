@@ -3,7 +3,7 @@ const http = require('node:https')
 
 const reactEnvelope = function(messageId){
     const channelUrl = `https://discord.com/api/v9/channels/${process.env.CHANNEL_ID}/messages/${messageId}/reactions/%E2%9C%89%EF%B8%8F/%40me?location=Message&type=0`
-
+    
     const headers = {
         "Authorization": process.env.AUTHORIZATION_ID
     }

@@ -110,14 +110,21 @@ app.post('/imagine', async function (req, res) {
         await sleep(3000)
 
         var matchingMessage;
-        while (true) {
+        var loop = 13; // A tolerance of 39 secs
+        while (loop > 0) {
             const filterFunction = findFromPrompt(uniqueId)
             var matchingMessage = await readDiscordMessage(filterFunction)
+
             if(!matchingMessage[0].content.includes('Waiting to start') && !matchingMessage[0].content.includes('%')){
                 break
             }
             else{
                 await sleep(3000)
+                loop--;
+            }
+
+            if(loop <= 0){
+                throw new Error('Timeout !!!')
             }
         }
 
@@ -245,6 +252,12 @@ app.post('/button', async function (req, res) {
         if (button.includes('U')) {
             filterFunction = findUpcaleFromPrompt(prompt, button)
             matchingMessage = await readDiscordMessage(filterFunction)
+
+            res.json({
+                success: true,
+                messageID: matchingMessage[0].attachments[0].url,
+                createdAt: matchingMessage[0].timestamp
+            })
         }
         else if (button.includes('V')) {
             filterFunction = findVariationFromPrompt(prompt)
@@ -257,6 +270,12 @@ app.post('/button', async function (req, res) {
                     await sleep(3000)
                 }
             }
+
+            res.json({
+                success: true,
+                messageID: matchingMessage[0].id,
+                createdAt: matchingMessage[0].timestamp
+            })
         }
         else {
             filterFunction = findRefreshFromPrompt(prompt)
@@ -269,13 +288,13 @@ app.post('/button', async function (req, res) {
                     await sleep(3000)
                 }
             }
-        }
 
-        res.json({
-            success: true,
-            messageID: matchingMessage[0].id,
-            createdAt: matchingMessage[0].timestamp
-        })
+            res.json({
+                success: true,
+                messageID: matchingMessage[0].id,
+                createdAt: matchingMessage[0].timestamp
+            })
+        }
     }
     catch (err) {
         console.error(err)
@@ -285,20 +304,6 @@ app.post('/button', async function (req, res) {
             createdAt: null
         })
     }
-})
-
-/**
- * @swagger
- * /status/{id}:
- *   post:
- *     summary: Read the status of a specific discord message
- *     description: Read the status of a specific discord message
-*/
-
-app.post('/status/:id', function (req, res) {
-    res.json({
-        msg: 'Success'
-    })
 })
 
 /**
@@ -343,7 +348,7 @@ app.post('/slash-commands', function (req, res) {
  *     description: Get the seed of the message
  *     parameters: 
  *       - in: path
- *         name: messageId
+ *         name: id
  *         description: The message id of the target
  *         schema:
  *           type: string
