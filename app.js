@@ -8,7 +8,7 @@ var app = express();
 require('dotenv').config()
 
 const { createPrompt } = require('./commands/createPrompt')
-const { findFromPrompt, findFromMessageId, readDiscordMessage, findUpcaleFromPrompt, findAnything, findSeed, findVariationFromPrompt } = require('./commands/readDiscordMessage');
+const { findFromPrompt, findFromMessageId, readDiscordMessage, findUpcaleFromPrompt, findAnything, findSeed, findVariationFromPrompt, findRefreshFromPrompt } = require('./commands/readDiscordMessage');
 const { createDataURI } = require('./commands/createDataURI');
 const { operateDiscordMessage } = require('./commands/operateDiscordMessage');
 const { reactEnvelope } = require('./commands/operateDiscordReaction')
@@ -244,7 +244,7 @@ app.post('/button', async function (req, res) {
 
         if (button.includes('U')) {
             filterFunction = findUpcaleFromPrompt(prompt, button)
-            await readDiscordMessage(filterFunction)
+            matchingMessage = await readDiscordMessage(filterFunction)
         }
         else if (button.includes('V')) {
             filterFunction = findVariationFromPrompt(prompt)
@@ -259,7 +259,7 @@ app.post('/button', async function (req, res) {
             }
         }
         else {
-            filterFunction = findFromPrompt(prompt)
+            filterFunction = findRefreshFromPrompt(prompt)
             while (true) {
                 var matchingMessage = await readDiscordMessage(filterFunction)
                 if(!matchingMessage[0].content.includes('Waiting to start') && !matchingMessage[0].content.includes('%')){

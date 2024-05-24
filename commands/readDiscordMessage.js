@@ -1,4 +1,5 @@
 require('dotenv').config()
+const { messageLink } = require('discord.js')
 const http = require("node:https")
 
 const findFromUniversalId = (id) => {
@@ -15,6 +16,10 @@ const findSeed = () => {
 
 const findFromPrompt = (prompt) => {
     return (message) => message.content.includes(prompt) && !message.content.includes('Image') && !message.content.includes('Variations')
+}
+
+const findRefreshFromPrompt = (prompt) => {
+    return (message) => message.content.includes(prompt)
 }
 
 const findFromMessageId = (messageId) => {
@@ -83,5 +88,6 @@ module.exports = {
     findAnything,
     findSeed,
     findVariationFromPrompt,
+    findRefreshFromPrompt,
     readDiscordMessage,
 }
